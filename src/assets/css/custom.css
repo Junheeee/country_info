@@ -88,76 +88,17 @@ body {
 }
 
 .country-box {
-    display: flex;
-    flex-direction: column;
-    /* position: relative; */
     background: #e2e2e2;
+    margin-top: 20px;
+    border-radius: 25px;
+    padding: 15px;
+}
+
+.country-box .mapbox {
+    background: #fff;
     padding: 15px;
     border-radius: 25px;
-    max-height: 650px;
-    margin-top: 20px;
-    align-items: center;
-    text-align: center;
-    transition: 1s ease-out;
-}
-
-.country-list {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-around;
-    overflow-y: auto;
-
-}
-
-/* .country-box .country { */
-    .country-list .country {
-    max-width: 130px;
-    padding: 10px 0px;
-}
-
-.country-box .country .country-img {
-    border: 1px solid #fff;
-    border-radius: 10px;
-    padding: 10px;
-    width: 100px;
-    height: 80px;
-    cursor: pointer;
-}
-
-.country-box .country .country-img:hover {
-    background: rgba(255, 255, 255, 0.874);
-    box-shadow: 0 2px 6px rgba(136, 148, 171, 0.42),
-    0 24px 20px -24px rgba(71, 82, 107, 0.069);
-}
-
-.country-box .country .country-img img {
-    width: 100%;
-    height: 100%;
-}
-
-.country-box .country p{
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.country-box .country .name {
-    margin-top: 10px;
-}
-
-.country-box .country .not-found {
-}
-
-.country-detail {
-    position: relative;
-    margin-top: 20px;
-    padding: 15px;
-    border-radius: 25px;
-    background: #e2e2e2;
-    height: 600px;
-}
-
-.country-detail img{
-    width: 200px;
+    
 }
 
 .map {
@@ -166,13 +107,93 @@ body {
     border-radius: 20px;
 }
 
-.map-container {
+.country-marker img{
+    transition: width 0.3s ease;
+}
+
+.country-marker img:hover {
+    width: 70px;
+    cursor: pointer;
+}
+
+/* .country-box {
+    display: flex;
+    flex-direction: column;
+    background: #e2e2e2;
+    padding: 15px;
+    border-radius: 25px;
+    max-height: 650px;
+    margin-top: 20px;
+    align-items: center;
+    text-align: center;
+    transition: 1s ease-out;
+} */
+
+/* .country-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    overflow-y: auto;
+
+} */
+
+/* .country-list .country {
+    max-width: 130px;
+    padding: 10px 0px;
+} */
+
+/* .country-box .country .country-img {
+    border: 1px solid #fff;
+    border-radius: 10px;
+    padding: 10px;
+    width: 100px;
+    height: 80px;
+    cursor: pointer;
+} */
+
+/* .country-box .country .country-img:hover {
+    background: rgba(255, 255, 255, 0.874);
+    box-shadow: 0 2px 6px rgba(136, 148, 171, 0.42),
+    0 24px 20px -24px rgba(71, 82, 107, 0.069);
+} */
+
+/* .country-box .country .country-img img {
+    width: 100%;
+    height: 100%;
+} */
+
+/* .country-box .country p{
+    font-size: 14px;
+    font-weight: 500;
+} */
+
+/* .country-box .country .name {
+    margin-top: 10px;
+} */
+
+/* .country-box .country .not-found {
+} */
+
+/* .country-detail {
+    position: relative;
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 25px;
+    background: #e2e2e2;
+    height: 600px;
+} */
+
+/* .country-detail img{
+    width: 200px;
+} */
+
+/* .map-container {
     background: #fff;
     padding: 10px;
     border-radius: 20px;
     display: flex;
     justify-content: center;
-}
+} */
 
 .fadeIn {
     animation: 0.6s fadeIn forwards;

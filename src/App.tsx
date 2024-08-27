@@ -1,108 +1,156 @@
 import React, { useEffect, useRef, useState } from 'react';
-import mapboxgl, { Map } from 'mapbox-gl';
+import mapboxgl, { LngLatBoundsLike, LngLatLike, Map, Marker } from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-
-interface CountryList {
-  name: string;
-  kor: string;
-  code: string;
-}
+import MapboxLanguage from '@mapbox/mapbox-gl-language';
+import { ICountryGeo, ICountryOption } from './model/interface';
 
 function App() {
   const mapContainer = useRef(null);
   const [mapObject, setMapObject] = useState<Map>();
 
-  const [inputValue, setInputValue] = useState('');
-  const [countryList, setCountryList] = useState<CountryList[]>([]);
-  const [searchList, setSearchList] = useState<any[]>([]);
+  const [inputValue, setInputValue] = useState<string>('');
+  const [countryGeo, setCountryGeo] = useState<ICountryGeo[]>([]);
+  const [searchGeo, setSearchGeo] = useState<ICountryGeo[]>([]);
 
-  const [selectCountry, setSelectCountry] = useState<any>(null);
+  const [markerList, setMarkerList] = useState<Marker[]>([]);
 
   useEffect(() => {
     handlerMapInit();
+    handlerAllCountry();
   }, []);
 
   useEffect(() => {
-    if (selectCountry) {
-      const detail = document.querySelector('.country-detail') as HTMLElement;
-      const details = document.querySelector('.country-details') as HTMLElement;
-
-      // detail.style.display = '';
-      details.style.display = '';
-      mapObject?.resize();
+    if (searchGeo.length > 0) {
+      handlerMarkerSetting();
     }
-  }, [selectCountry]);
+  }, [searchGeo]);
 
-  useEffect(() => {
-    if (searchList.length > 0) {
-      console.log(searchList, '---searchList');
-    }
-  }, [searchList]);
-
-  useEffect(() => {
-    if (countryList.length === 0) {
-      fetch(`https://restcountries.com/v3.1/all`)
-        .then(res => res.json())
-        .then(json => {
-          const arr: any[] = [];
-          json.map((country: any) => {
-            const option = {
-              official: country.name.official,
-              kor: country.translations.kor.official,
-              code: country.cca3
-            };
-            arr.push(option);
-          });
-          setCountryList(arr);
-        });
-    }
-  }, [countryList]);
-
+  // 지도 초기화
   const handlerMapInit = () => {
     mapboxgl.accessToken =
       'pk.eyJ1IjoianVuaGVlZSIsImEiOiJjbGxnNWVhc3IweDJsM2dvYmI1ZXg2MGljIn0.EmSS1ocpPJv2ZaduQHmz_Q';
 
     const map = new mapboxgl.Map({
       container: 'map', // container ID
-      style: 'mapbox://styles/mapbox/streets-v12', // style URL
+      style: 'mapbox://styles/mapbox/outdoors-v12', // style URL
       center: [126.612647, 37.519893], // starting position [lng, lat]
-      zoom: 15,
+      zoom: 2,
       antialias: true,
       attributionControl: false
     });
-
-    const preview: any = {
-      type: 'geojson',
-      data: {
-        type: 'FeatureCollection',
-        features: []
-      }
-    };
-
-    // map.on('style.load', () => {
-    //   map.addSource('preview', preview);
-
-    //   map.addLayer({
-    //     id: 'polyline',
-    //     type: 'line',
-    //     source: 'preview',
-    //     layout: {
-    //       'line-cap': 'round',
-    //       'line-join': 'round'
-    //     },
-    //     paint: {
-    //       'line-color': '#283046',
-    //       'line-width': 2
-    //     },
-    //     filter: ['==', ['get', 'id'], 'LINE']
-    //   });
-    // });
+    const language = new MapboxLanguage();
+    map.addControl(language);
 
     setMapObject(map);
   };
 
-  const handlerClick = (country: any) => {
-    setSelectCountry(country);
+  // Marker 셋팅
+  const handlerMarkerSetting = () => {
+    if (mapObject) {
+      if (markerList.length > 0) {
+        markerList.map((marker: Marker) => {
+          marker.remove();
+        });
+      }
+
+      const markers = searchGeo.map((geo: ICountryGeo, idx: number) => {
+        const el = document.createElement('div');
+        el.className = 'marker country-marker';
+        el.setAttribute('index', String(idx));
+
+        const imgEl = document.createElement('img');
+        imgEl.src = geo.properties.flag;
+        imgEl.width = 50;
+
+        el.appendChild(imgEl);
+
+        const marker = new mapboxgl.Marker(el)
+          .setLngLat([geo.geometry.coordinates[1], geo.geometry.coordinates[0]])
+          .addTo(mapObject);
+
+        return marker;
+      });
+
+      setMarkerList(markers);
+    }
+  };
+
+  // res -> geojson 가공
+  const handlerChangeGeoJson = (geoArr: any[]) => {
+    const geojson: ICountryGeo[] = [];
+    geoArr.map((country: any) => {
+      const option: ICountryOption = {
+        latlng: country.latlng,
+        flag: country.flags.svg,
+        official: country.name.official,
+        kor: country.translations.kor.official,
+        code: country.cca3
+      };
+      const feature: ICountryGeo = handlerPoint(option);
+      geojson.push(feature);
+    });
+    return geojson;
+  };
+
+  // res -> geojson 가공(point)
+  const handlerPoint = (country: ICountryOption) => {
+    return {
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: country.latlng
+      },
+      properties: {
+        flag: country.flag,
+        official: country.official,
+        kor: country.kor,
+        code: country.code
+      }
+    };
+  };
+
+  // 모든 나라 검색
+  const handlerAllCountry = () => {
+    fetch(`https://restcountries.com/v3.1/all`)
+      .then(res => res.json())
+      .then((json: any) => {
+        const geojson = handlerChangeGeoJson(json);
+        setCountryGeo(geojson);
+        setSearchGeo(geojson);
+      });
+  };
+
+  // 특정 나라 검색(kor -> code 변환 검색)
+  const handlerCodeCountry = (searchCode: string) => {
+    // fetch(`https://restcountries.com/v3.1/alpha?codes=${searchCode}`)
+    fetch(`https://restcountries.com/v3.1/translation/${inputValue}`)
+      .then(res => res.json())
+      .then((json: any) => {
+        if (json.status === 404 || json.status === 400) {
+          setSearchGeo([]);
+        } else {
+          const geojson: ICountryGeo[] = handlerChangeGeoJson(json);
+          setSearchGeo(geojson);
+
+          const coordinates = geojson[0].geometry.coordinates;
+          const lngLat = new mapboxgl.LngLat(coordinates[1], coordinates[0]);
+
+          if (geojson.length !== 1) {
+            const bounds = new mapboxgl.LngLatBounds();
+            geojson.map((geo: ICountryGeo) => {
+              const coord = [
+                geo.geometry.coordinates[1],
+                geo.geometry.coordinates[0]
+              ];
+              bounds.extend(coord as LngLatBoundsLike);
+            });
+
+            mapObject?.fitBounds(bounds, { padding: 100 });
+          } else {
+            mapObject?.flyTo({ center: lngLat });
+          }
+        }
+      });
   };
 
   const handlerChange = (e: any) => {
@@ -111,60 +159,29 @@ function App() {
 
   const handlerKeyDown = (e: any) => {
     if (e.key === 'Enter') {
-      handlerSearch();
+      // handlerSearch();
     }
   };
 
+  // 검색
   const handlerSearch = () => {
-    const container = document.querySelector('.container') as HTMLElement;
-    const countryBox = document.querySelector('.country-box') as HTMLElement;
-
-    const searchCodeArr: string[] = [];
-
-    countryList.map((country: CountryList) => {
-      if (country.kor.includes(inputValue)) {
-        searchCodeArr.push(country.code);
-      }
-    });
-
-    let searchCode = '';
-    searchCodeArr?.forEach(code => {
-      searchCode += `${code},`;
-    });
-
-    if (inputValue !== '') {
-      fetch(`https://restcountries.com/v3.1/alpha?codes=${searchCode}`)
-        .then(res => res.json())
-        .then(json => {
-          if (json.status === 404 || json.status === 400) {
-            setSearchList([]);
-            countryBox.style.display = 'flex';
-          } else {
-            countryBox.style.display = 'flex';
-            // container.style.width = '700px';
-
-            countryBox.scrollTop = 0;
-
-            const arr: any[] = [];
-            json?.forEach((item: any) => {
-              arr.push(item);
-            });
-            setSearchList(arr);
-          }
-        });
+    if (inputValue === '') {
+      handlerAllCountry();
     } else {
-      fetch(`https://restcountries.com/v3.1/all`)
-        .then(res => res.json())
-        .then(json => {
-          countryBox.style.display = 'flex';
-          // container.style.width = '700px';
+      const searchCodeArr: string[] = [];
 
-          const arr: any[] = [];
-          json.forEach((item: any) => {
-            arr.push(item);
-          });
-          setSearchList(arr);
-        });
+      countryGeo.map((country: ICountryGeo) => {
+        if (country.properties.kor.includes(inputValue)) {
+          searchCodeArr.push(country.properties.code);
+        }
+      });
+
+      let searchCode = '';
+      searchCodeArr?.forEach(code => {
+        searchCode += `${code},`;
+      });
+
+      handlerCodeCountry(searchCode);
     }
   };
 
@@ -189,7 +206,13 @@ function App() {
           <button className='ri-search-line' onClick={handlerSearch}></button>
         </div>
 
-        <div className='country-box' style={{ display: 'none' }}>
+        <div className='country-box'>
+          <div className='mapbox'>
+            <div id='map' ref={mapContainer} className='map'></div>
+          </div>
+        </div>
+
+        {/* <div className='country-box' style={{ display: 'none' }}>
           <div className='country-list'>
             {searchList?.length > 0 ? (
               searchList?.map(search => {
@@ -217,7 +240,7 @@ function App() {
               <div id='map' ref={mapContainer} className='map'></div>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* <div className='country-detail' style={{ display: 'none' }}>
           <div className='map-container'>
