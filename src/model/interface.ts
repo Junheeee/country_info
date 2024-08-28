@@ -13,9 +13,12 @@ export interface ICountryGeo {
 }
 
 export interface ICountryOption {
-  latlng: number[];
-  flag: string;
-  official: string;
-  kor: string;
-  code: string;
+  type: string;
+  coordinates: any;
+  properties: {
+    flag?: string;
+    official?: string;
+    kor?: string;
+    code?: string;
+  };
 }

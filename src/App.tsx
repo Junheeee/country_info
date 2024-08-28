@@ -1,18 +1,35 @@
-import React, { useEffect, useRef, useState } from 'react';
-import mapboxgl, { LngLatBoundsLike, LngLatLike, Map, Marker } from 'mapbox-gl';
+import { useEffect, useRef, useState } from 'react';
+import mapboxgl, {
+  GeoJSONSource,
+  LngLatBoundsLike,
+  Map,
+  Marker
+} from 'mapbox-gl';
+import * as turf from '@turf/turf';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import MapboxLanguage from '@mapbox/mapbox-gl-language';
 import { ICountryGeo, ICountryOption } from './model/interface';
+import { countryBorder } from './json';
 
 function App() {
   const mapContainer = useRef(null);
   const [mapObject, setMapObject] = useState<Map>();
 
+  // 검색 input
   const [inputValue, setInputValue] = useState<string>('');
+  // 모든 국가 geo
   const [countryGeo, setCountryGeo] = useState<ICountryGeo[]>([]);
+  // 검색한 국가 geo
   const [searchGeo, setSearchGeo] = useState<ICountryGeo[]>([]);
 
+  // 국가 마커
   const [markerList, setMarkerList] = useState<Marker[]>([]);
+
+  // 국경선 데이터
+  const borderGeoData: any = {
+    type: 'FeatureCollection',
+    features: []
+  };
 
   useEffect(() => {
     handlerMapInit();
@@ -41,6 +58,28 @@ function App() {
     const language = new MapboxLanguage();
     map.addControl(language);
 
+    map?.on('style.load', () => {
+      if (!map.getSource('borderGeoData')) {
+        map.addSource('borderGeoData', {
+          type: 'geojson',
+          data: borderGeoData
+        });
+
+        const borderGeoPolygon: any = {
+          id: 'border-polygon',
+          type: 'fill',
+          source: 'borderGeoData',
+          layout: {},
+          paint: {
+            'fill-color': '#999',
+            'fill-opacity': 0.5,
+            'fill-outline-color': '#000000'
+          }
+        };
+        map.addLayer(borderGeoPolygon);
+      }
+    });
+
     setMapObject(map);
   };
 
@@ -57,6 +96,43 @@ function App() {
         const el = document.createElement('div');
         el.className = 'marker country-marker';
         el.setAttribute('index', String(idx));
+
+        // 마커 click 이벤트
+        el.addEventListener('click', () => {
+          countryBorder.features.map(country => {
+            if (country.properties?.description == geo.properties.code) {
+              borderGeoData.features = [];
+
+              const option: ICountryOption = {
+                type: 'MultiPolygon',
+                coordinates: country.geometry.coordinates,
+                properties: {
+                  code: country.properties.description
+                }
+              };
+              const feature = handlerFeature(option);
+
+              // borderGeoData
+              borderGeoData.features.push(feature);
+              mapObject
+                ?.getSource<GeoJSONSource>('borderGeoData')
+                ?.setData(borderGeoData);
+
+              // fitBounds
+              const bounds = new mapboxgl.LngLatBounds();
+              feature.geometry.coordinates.map(
+                (coord: [[[number, number]]], idx: number) => {
+                  if (idx % 10 === 0) {
+                    coord[0].map((co: [number, number]) => {
+                      bounds.extend(co);
+                    });
+                  }
+                }
+              );
+              mapObject?.fitBounds(bounds, { padding: 40 });
+            }
+          });
+        });
 
         const imgEl = document.createElement('img');
         imgEl.src = geo.properties.flag;
@@ -80,31 +156,31 @@ function App() {
     const geojson: ICountryGeo[] = [];
     geoArr.map((country: any) => {
       const option: ICountryOption = {
-        latlng: country.latlng,
-        flag: country.flags.svg,
-        official: country.name.official,
-        kor: country.translations.kor.official,
-        code: country.cca3
+        type: 'Point',
+        coordinates: country.latlng,
+        properties: {
+          flag: country.flags.svg,
+          official: country.name.official,
+          kor: country.translations.kor.official,
+          code: country.cca3
+        }
       };
-      const feature: ICountryGeo = handlerPoint(option);
+      const feature = handlerFeature(option);
       geojson.push(feature);
     });
     return geojson;
   };
 
-  // res -> geojson 가공(point)
-  const handlerPoint = (country: ICountryOption) => {
+  // res -> geojson 가공
+  const handlerFeature = (item: any) => {
     return {
       type: 'Feature',
       geometry: {
-        type: 'Point',
-        coordinates: country.latlng
+        type: item.type,
+        coordinates: item.coordinates
       },
       properties: {
-        flag: country.flag,
-        official: country.official,
-        kor: country.kor,
-        code: country.code
+        ...item.properties
       }
     };
   };
@@ -198,11 +274,11 @@ function App() {
             onChange={e => handlerChange(e)}
             onKeyDown={e => handlerKeyDown(e)}
           />
-          {/* <datalist id='countryList'>
-            {countryList.map(country => {
-              return <option value={country.kor} />;
+          <datalist id='countryList'>
+            {countryGeo.map((country, idx: number) => {
+              return <option key={idx} value={country.properties.kor} />;
             })}
-          </datalist> */}
+          </datalist>
           <button className='ri-search-line' onClick={handlerSearch}></button>
         </div>
 
