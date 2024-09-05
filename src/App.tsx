@@ -5,7 +5,6 @@ import mapboxgl, {
   Map,
   Marker
 } from 'mapbox-gl';
-import * as turf from '@turf/turf';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import MapboxLanguage from '@mapbox/mapbox-gl-language';
 import { ICountryGeo, ICountryOption } from './model/interface';
@@ -99,39 +98,7 @@ function App() {
 
         // 마커 click 이벤트
         el.addEventListener('click', () => {
-          countryBorder.features.map(country => {
-            if (country.properties?.description == geo.properties.code) {
-              borderGeoData.features = [];
-
-              const option: ICountryOption = {
-                type: 'MultiPolygon',
-                coordinates: country.geometry.coordinates,
-                properties: {
-                  code: country.properties.description
-                }
-              };
-              const feature = handlerFeature(option);
-
-              // borderGeoData
-              borderGeoData.features.push(feature);
-              mapObject
-                ?.getSource<GeoJSONSource>('borderGeoData')
-                ?.setData(borderGeoData);
-
-              // fitBounds
-              const bounds = new mapboxgl.LngLatBounds();
-              feature.geometry.coordinates.map(
-                (coord: [[[number, number]]], idx: number) => {
-                  if (idx % 10 === 0) {
-                    coord[0].map((co: [number, number]) => {
-                      bounds.extend(co);
-                    });
-                  }
-                }
-              );
-              mapObject?.fitBounds(bounds, { padding: 40 });
-            }
-          });
+          handlerDrawBorder(geo);
         });
 
         const imgEl = document.createElement('img');
@@ -171,7 +138,7 @@ function App() {
     return geojson;
   };
 
-  // res -> geojson 가공
+  // geojson 가공
   const handlerFeature = (item: any) => {
     return {
       type: 'Feature',
@@ -206,13 +173,13 @@ function App() {
           setSearchGeo([]);
         } else {
           const geojson: ICountryGeo[] = handlerChangeGeoJson(json);
-          setSearchGeo(geojson);
 
           const coordinates = geojson[0].geometry.coordinates;
           const lngLat = new mapboxgl.LngLat(coordinates[1], coordinates[0]);
+          const bounds = new mapboxgl.LngLatBounds();
 
-          if (geojson.length !== 1) {
-            const bounds = new mapboxgl.LngLatBounds();
+          if (geojson.length > 1) {
+            setSearchGeo(geojson);
             geojson.map((geo: ICountryGeo) => {
               const coord = [
                 geo.geometry.coordinates[1],
@@ -220,13 +187,67 @@ function App() {
               ];
               bounds.extend(coord as LngLatBoundsLike);
             });
-
             mapObject?.fitBounds(bounds, { padding: 100 });
           } else {
-            mapObject?.flyTo({ center: lngLat });
+            setSearchGeo(countryGeo);
+            handlerDrawBorder(geojson[0]);
           }
         }
       });
+  };
+
+  // 국경선 생성 및 맵 fitBounds
+  const handlerDrawBorder = (geo: ICountryGeo) => {
+    const border: any = countryBorder.features.find(
+      country => country.properties?.name === geo.properties.code
+    );
+    borderGeoData.features = [];
+
+    if (border) {
+      const type = border.geometry.type;
+      const option: ICountryOption = {
+        type: type,
+        coordinates: border.geometry.coordinates,
+        properties: {
+          code: border.properties.description
+        }
+      };
+
+      const feature = handlerFeature(option);
+
+      // borderGeoData
+      borderGeoData.features.push(feature);
+      mapObject
+        ?.getSource<GeoJSONSource>('borderGeoData')
+        ?.setData(borderGeoData);
+
+      // fitBounds
+      const bounds = handlerFitBounds(type, feature);
+      mapObject?.fitBounds(bounds, { padding: 100 });
+    }
+  };
+
+  const handlerFitBounds = (type: string, feature: any) => {
+    const bounds = new mapboxgl.LngLatBounds();
+    if (type === 'MultiPolygon') {
+      feature.geometry.coordinates.map(
+        (coord: [[[number, number]]], idx: number) => {
+          if (idx % 5 === 0) {
+            coord[0].map((co: [number, number]) => {
+              bounds.extend(co);
+            });
+          }
+        }
+      );
+    } else {
+      feature.geometry.coordinates.map((coord: [[number, number]]) => {
+        coord.map((co: [number, number]) => {
+          bounds.extend(co);
+        });
+      });
+    }
+
+    return bounds;
   };
 
   const handlerChange = (e: any) => {
