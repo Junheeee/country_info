@@ -20,7 +20,6 @@ function App() {
   const [countryGeo, setCountryGeo] = useState<ICountryGeo[]>([]);
   // 검색한 국가 geo
   const [searchGeo, setSearchGeo] = useState<ICountryGeo[]>([]);
-
   // 국가 마커
   const [markerList, setMarkerList] = useState<Marker[]>([]);
 
@@ -80,6 +79,13 @@ function App() {
     });
 
     setMapObject(map);
+  };
+
+  // map 데이터 갱신
+  const handlerSourceSetData = () => {
+    mapObject
+      ?.getSource<GeoJSONSource>('borderGeoData')
+      ?.setData(borderGeoData);
   };
 
   // Marker 셋팅
@@ -164,18 +170,19 @@ function App() {
   };
 
   // 특정 나라 검색(kor -> code 변환 검색)
-  const handlerCodeCountry = (searchCode: string) => {
+  const handlerCodeCountry = () => {
     // fetch(`https://restcountries.com/v3.1/alpha?codes=${searchCode}`)
     fetch(`https://restcountries.com/v3.1/translation/${inputValue}`)
       .then(res => res.json())
       .then((json: any) => {
         if (json.status === 404 || json.status === 400) {
-          setSearchGeo([]);
+          setInputValue('');
+          setSearchGeo(countryGeo);
+          borderGeoData.features = [];
+          handlerSourceSetData();
+          alert('검색 정보가 없습니다.');
         } else {
           const geojson: ICountryGeo[] = handlerChangeGeoJson(json);
-
-          const coordinates = geojson[0].geometry.coordinates;
-          const lngLat = new mapboxgl.LngLat(coordinates[1], coordinates[0]);
           const bounds = new mapboxgl.LngLatBounds();
 
           if (geojson.length > 1) {
@@ -217,9 +224,7 @@ function App() {
 
       // borderGeoData
       borderGeoData.features.push(feature);
-      mapObject
-        ?.getSource<GeoJSONSource>('borderGeoData')
-        ?.setData(borderGeoData);
+      handlerSourceSetData();
 
       // fitBounds
       const bounds = handlerFitBounds(type, feature);
@@ -265,20 +270,7 @@ function App() {
     if (inputValue === '') {
       handlerAllCountry();
     } else {
-      const searchCodeArr: string[] = [];
-
-      countryGeo.map((country: ICountryGeo) => {
-        if (country.properties.kor.includes(inputValue)) {
-          searchCodeArr.push(country.properties.code);
-        }
-      });
-
-      let searchCode = '';
-      searchCodeArr?.forEach(code => {
-        searchCode += `${code},`;
-      });
-
-      handlerCodeCountry(searchCode);
+      handlerCodeCountry();
     }
   };
 
