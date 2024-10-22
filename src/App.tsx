@@ -9,6 +9,9 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import MapboxLanguage from '@mapbox/mapbox-gl-language';
 import { ICountryGeo, ICountryOption } from './model/interface';
 import { countryBorder } from './json';
+import { handlerFeature, handlerFitBounds } from './utils/mapUtils';
+import { MapboxMap } from './components/MapboxMap';
+import { MAPBOX_TOKEN } from './configs/constants';
 
 function App() {
   const mapContainer = useRef(null);
@@ -42,43 +45,44 @@ function App() {
 
   // 지도 초기화
   const handlerMapInit = () => {
-    mapboxgl.accessToken =
-      'pk.eyJ1IjoianVuaGVlZSIsImEiOiJjbGxnNWVhc3IweDJsM2dvYmI1ZXg2MGljIn0.EmSS1ocpPJv2ZaduQHmz_Q';
+    if (MAPBOX_TOKEN) {
+      mapboxgl.accessToken = MAPBOX_TOKEN;
 
-    const map = new mapboxgl.Map({
-      container: 'map', // container ID
-      style: 'mapbox://styles/mapbox/outdoors-v12', // style URL
-      center: [126.612647, 37.519893], // starting position [lng, lat]
-      zoom: 2,
-      antialias: true,
-      attributionControl: false
-    });
-    const language = new MapboxLanguage();
-    map.addControl(language);
+      const map = new mapboxgl.Map({
+        container: 'map', // container ID
+        style: 'mapbox://styles/mapbox/outdoors-v12', // style URL
+        center: [126.612647, 37.519893], // starting position [lng, lat]
+        zoom: 2,
+        antialias: true,
+        attributionControl: false
+      });
+      const language = new MapboxLanguage();
+      map.addControl(language);
 
-    map?.on('style.load', () => {
-      if (!map.getSource('borderGeoData')) {
-        map.addSource('borderGeoData', {
-          type: 'geojson',
-          data: borderGeoData
-        });
+      map?.on('style.load', () => {
+        if (!map.getSource('borderGeoData')) {
+          map.addSource('borderGeoData', {
+            type: 'geojson',
+            data: borderGeoData
+          });
 
-        const borderGeoPolygon: any = {
-          id: 'border-polygon',
-          type: 'fill',
-          source: 'borderGeoData',
-          layout: {},
-          paint: {
-            'fill-color': '#999',
-            'fill-opacity': 0.5,
-            'fill-outline-color': '#000000'
-          }
-        };
-        map.addLayer(borderGeoPolygon);
-      }
-    });
+          const borderGeoPolygon: any = {
+            id: 'border-polygon',
+            type: 'fill',
+            source: 'borderGeoData',
+            layout: {},
+            paint: {
+              'fill-color': '#999',
+              'fill-opacity': 0.5,
+              'fill-outline-color': '#000000'
+            }
+          };
+          map.addLayer(borderGeoPolygon);
+        }
+      });
 
-    setMapObject(map);
+      setMapObject(map);
+    }
   };
 
   // map 데이터 갱신
@@ -142,20 +146,6 @@ function App() {
       geojson.push(feature);
     });
     return geojson;
-  };
-
-  // geojson 가공
-  const handlerFeature = (item: any) => {
-    return {
-      type: 'Feature',
-      geometry: {
-        type: item.type,
-        coordinates: item.coordinates
-      },
-      properties: {
-        ...item.properties
-      }
-    };
   };
 
   // 모든 나라 검색
@@ -232,46 +222,17 @@ function App() {
     }
   };
 
-  const handlerFitBounds = (type: string, feature: any) => {
-    const bounds = new mapboxgl.LngLatBounds();
-    if (type === 'MultiPolygon') {
-      feature.geometry.coordinates.map(
-        (coord: [[[number, number]]], idx: number) => {
-          if (idx % 5 === 0) {
-            coord[0].map((co: [number, number]) => {
-              bounds.extend(co);
-            });
-          }
-        }
-      );
-    } else {
-      feature.geometry.coordinates.map((coord: [[number, number]]) => {
-        coord.map((co: [number, number]) => {
-          bounds.extend(co);
-        });
-      });
-    }
-
-    return bounds;
-  };
-
   const handlerChange = (e: any) => {
     setInputValue(e.target.value);
   };
 
   const handlerKeyDown = (e: any) => {
-    if (e.key === 'Enter') {
-      // handlerSearch();
-    }
+    if (e.key === 'Enter') handlerSearch();
   };
 
   // 검색
   const handlerSearch = () => {
-    if (inputValue === '') {
-      handlerAllCountry();
-    } else {
-      handlerCodeCountry();
-    }
+    inputValue === '' ? handlerAllCountry() : handlerCodeCountry();
   };
 
   return (
@@ -296,59 +257,8 @@ function App() {
         </div>
 
         <div className='country-box'>
-          <div className='mapbox'>
-            <div id='map' ref={mapContainer} className='map'></div>
-          </div>
+          <MapboxMap map={mapContainer} />
         </div>
-
-        {/* <div className='country-box' style={{ display: 'none' }}>
-          <div className='country-list'>
-            {searchList?.length > 0 ? (
-              searchList?.map(search => {
-                return (
-                  <div className='country'>
-                    <div
-                      className='country-img'
-                      onClick={() => handlerClick(search)}
-                    >
-                      <img src={search.flags.svg} alt='' />
-                    </div>
-                    <p className='name'>{search.translations.kor.official}</p>
-                  </div>
-                );
-              })
-            ) : (
-              <div className='country'>
-                <p className='not-found'>검색결과가 없습니다.</p>
-              </div>
-            )}
-          </div>
-
-          <div className='country-details' style={{ display: 'none' }}>
-            <div className='map-container'>
-              <div id='map' ref={mapContainer} className='map'></div>
-            </div>
-          </div>
-        </div> */}
-
-        {/* <div className='country-detail' style={{ display: 'none' }}>
-          <div className='map-container'>
-            <div id='map' ref={mapContainer} className='map'></div>
-          </div>
-          <img src={selectCountry?.flags.svg} alt='' />
-          <div className='weather-info'>(수도)날씨</div>
-          <p>국가명: {selectCountry?.translations.kor.official}</p>
-          <p>수도: {selectCountry?.capital[0]}</p>
-          <p>
-            국경(맞닿아 있는 국가):
-            {selectCountry?.borders.map((border: string) => {
-              return <>{border}</>;
-            })}
-          </p>
-          <p>화폐단위: </p>
-          <p>위치</p>
-          <p>타임존</p>
-        </div> */}
       </div>
     </>
   );
