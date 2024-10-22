@@ -12,8 +12,12 @@ import { countryBorder } from './json';
 import { handlerFeature, handlerFitBounds } from './utils/mapUtils';
 import { MapboxMap } from './components/MapboxMap';
 import { MAPBOX_TOKEN } from './configs/constants';
+import { getAllCountry } from './redux/country/countryThunk';
+import { useDispatch } from './redux/store';
 
 function App() {
+  const dispatch = useDispatch();
+
   const mapContainer = useRef(null);
   const [mapObject, setMapObject] = useState<Map>();
 
@@ -150,13 +154,15 @@ function App() {
 
   // 모든 나라 검색
   const handlerAllCountry = () => {
-    fetch(`https://restcountries.com/v3.1/all`)
-      .then(res => res.json())
-      .then((json: any) => {
-        const geojson = handlerChangeGeoJson(json);
-        setCountryGeo(geojson);
-        setSearchGeo(geojson);
-      });
+    dispatch(getAllCountry());
+
+    // fetch(`https://restcountries.com/v3.1/all`)
+    //   .then(res => res.json())
+    //   .then((json: any) => {
+    //     const geojson = handlerChangeGeoJson(json);
+    //     setCountryGeo(geojson);
+    //     setSearchGeo(geojson);
+    //   });
   };
 
   // 특정 나라 검색(kor -> code 변환 검색)
